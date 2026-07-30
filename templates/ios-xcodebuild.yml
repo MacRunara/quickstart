@@ -1,0 +1,95 @@
+# Workflow 模板：iOS（xcodebuild）
+# =============================================================================
+# 适用项目：使用 Xcode 工程（.xcodeproj / .xcworkspace）的 iOS 应用。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/ios-xcodebuild.yml
+#   2. 按需修改 scheme、project/workspace 路径、模拟器 destination
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 技术背景：
+# - GitHub Actions Workflow 是定义在 .github/workflows/ 目录下的 YAML 文件
+# - runs-on 字段决定 job 在哪类 Runner 上执行；标签匹配采用 AND 逻辑，
+#   runs-on 必须是节点上报标签的子集（详见 docs/runs-on-labels.md）
+# - Macrunara 节点为标准 Apple Silicon M4 macOS 环境，预装 Xcode
+# =============================================================================
+
+name: iOS CI (xcodebuild)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-ios:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v4
+
+      # Step 2（可选）: Macrunara Setup Action
+      # --------------------------------------
+      # 作用：打印品牌横幅（日志可见"本 job 由 Macrunara 执行"）、校验参数、
+      # 导出环境信息（MACRUNARA_REGION 等）。本步骤不是必需的，删除后不影响构建。
+      - uses: macrunara/setup-action@v1
+        with:
+          # Installation ID 从仓库 Secrets 读取（Settings → Secrets and variables → Actions）
+          installation-id: ${{ secrets.MACRUNARA_INSTALLATION_ID }}
+          region: auto
+
+      # Step 3: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
+
+      # Step 4: 构建
+      # ------------
+      # -scheme 指定构建目标；-destination 指定模拟器作为构建目标平台。
+      # 如使用 .xcworkspace，请将 -project 替换为 -workspace MyApp.xcworkspace。
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project MyApp.xcodeproj \
+            -scheme MyApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -configuration Debug
+
+      # Step 5: 测试
+      # ------------
+      # 在 iOS 模拟器上执行单元测试与 UI 测试。
+      # Macrunara 节点为 M4 真机性能，模拟器以 arm64 原生运行。
+      - name: Test
+        run: |
+          xcodebuild test \
+            -project MyApp.xcodeproj \
+            -scheme MyApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16'
+
+      # Step 6: 归档并上传产物
+      # ----------------------
+      # 归档生成 .xcarchive（此处未签名导出，仅作 CI 产物留存）。
+      # 如需签名分发，请在节点配置证书/描述文件后追加 -exportArchive 步骤。
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project MyApp.xcodeproj \
+            -scheme MyApp \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/MyApp.xcarchive \
+            CODE_SIGNING_ALLOWED=NO
+
+      # 上传归档产物到 workflow 运行页面（保留期默认 90 天）
+      - name: Upload Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcarchive
+          path: build/MyApp.xcarchive
+          if-no-files-found: warn

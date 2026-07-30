@@ -1,0 +1,98 @@
+# Workflow 模板：React Native
+# =============================================================================
+# 适用项目：React Native 应用（示例覆盖 JS 测试与 iOS 原生构建）。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/react-native.yml
+#   2. 按需修改 iOS workspace/scheme 名、包管理器（npm / yarn 二选一）
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 包管理器说明（二选一，示例默认 npm）：
+# - npm：使用 npm ci（严格按 package-lock.json 安装）
+# - yarn：使用 yarn install --frozen-lockfile
+#   切换方式：将 Install Dependencies 步骤的 run 替换为 yarn 命令即可。
+# =============================================================================
+
+name: React Native CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-react-native:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v4
+
+      # Step 2（可选）: Macrunara Setup Action
+      # --------------------------------------
+      # 作用：打印品牌横幅（日志可见"本 job 由 Macrunara 执行"）、校验参数、
+      # 导出环境信息（MACRUNARA_REGION 等）。本步骤不是必需的，删除后不影响构建。
+      - uses: macrunara/setup-action@v1
+        with:
+          installation-id: ${{ secrets.MACRUNARA_INSTALLATION_ID }}
+          region: auto
+
+      # Step 3: 配置 Node.js 20（React Native 0.73+ 推荐版本）
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 4: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          node --version
+          xcodebuild -version
+
+      # Step 5: 安装 JS 依赖
+      # --------------------
+      # npm 项目：npm ci
+      # yarn 项目：yarn install --frozen-lockfile
+      - name: Install Dependencies
+        run: npm ci
+
+      # Step 6: 安装 iOS 原生依赖（CocoaPods）
+      # npx pod-install 会自动进入 ios/ 目录执行 pod install（含 repo 更新检测）
+      - name: Install iOS Pods
+        run: npx pod-install
+
+      # Step 7: JS 单元测试（Jest）
+      - name: Test
+        run: npm test
+
+      # Step 8: 构建 iOS 应用
+      # ---------------------
+      # 典型命令（按需修改 workspace 与 scheme 名）：
+      #   xcodebuild build \
+      #     -workspace ios/MyApp.xcworkspace \
+      #     -scheme MyApp \
+      #     -configuration Debug \
+      #     -destination 'generic/platform=iOS Simulator' \
+      #     -derivedDataPath build/DerivedData
+      # 说明：模拟器目标无需签名即可构建；真机构建需配置证书/描述文件。
+      - name: Build iOS
+        run: |
+          xcodebuild build \
+            -workspace ios/MyApp.xcworkspace \
+            -scheme MyApp \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData
+
+      # Step 9: 上传产物（DerivedData 中的 .app）
+      - name: Upload App
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-native-ios-app
+          path: build/DerivedData/Build/Products/Debug-iphonesimulator/
+          if-no-files-found: warn

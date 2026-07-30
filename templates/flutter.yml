@@ -1,0 +1,88 @@
+# Workflow 模板：Flutter
+# =============================================================================
+# 适用项目：Flutter 跨平台应用（示例同时覆盖 iOS 与 Android 构建）。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/flutter.yml
+#   2. 按需修改 Flutter 版本、构建目标（ipa/apk）
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 环境说明：
+# - Flutter SDK 需节点预装（Macrunara 平台 Mac mini M4 节点已预装稳定版），
+#   或改用 subosito/flutter-action@v2 在 job 内安装指定版本：
+#     - uses: subosito/flutter-action@v2
+#       with:
+#         flutter-version: '3.24.0'
+#         channel: stable
+#   若节点已预装，可删除下方的 flutter-action 步骤以节省安装时间。
+# =============================================================================
+
+name: Flutter CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-flutter:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v4
+
+      # Step 2（可选）: Macrunara Setup Action
+      # --------------------------------------
+      # 作用：打印品牌横幅（日志可见"本 job 由 Macrunara 执行"）、校验参数、
+      # 导出环境信息（MACRUNARA_REGION 等）。本步骤不是必需的，删除后不影响构建。
+      - uses: macrunara/setup-action@v1
+        with:
+          installation-id: ${{ secrets.MACRUNARA_INSTALLATION_ID }}
+          region: auto
+
+      # Step 3: 安装/固定 Flutter SDK 版本
+      # 若节点已预装所需版本，可删除本步骤。
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # Step 4: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          flutter --version
+
+      # Step 5: 拉取依赖
+      - name: Pub Get
+        run: flutter pub get
+
+      # Step 6: 静态分析
+      - name: Analyze
+        run: flutter analyze
+
+      # Step 7: 单元测试 / Widget 测试
+      - name: Test
+        run: flutter test
+
+      # Step 8: 构建 iOS 产物（无签名）
+      # -------------------------------
+      # --no-codesign：CI 环境不配置证书，仅验证编译链路；
+      # 如需签名分发，请在节点配置证书/描述文件后移除该参数。
+      # Android 项目可改用：flutter build apk --debug
+      - name: Build iOS (no codesign)
+        run: flutter build ipa --no-codesign
+
+      # Step 9: 上传产物
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-ios-build
+          # 无签名 ipa 输出目录；如改用 apk，路径为 build/app/outputs/flutter-apk/
+          path: build/ios/ipa/
+          if-no-files-found: warn
