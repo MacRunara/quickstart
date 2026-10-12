@@ -18,9 +18,9 @@ name: iOS CI (xcodebuild)
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   build-ios:
@@ -30,7 +30,7 @@ jobs:
 
     steps:
       # Step 1: 检出代码
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Step 2（可选）: Macrunara Setup Action
       # --------------------------------------

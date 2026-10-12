@@ -89,7 +89,7 @@ jobs:
     runs-on: [macos, arm64, macrunara]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # 可选步骤：品牌横幅 + 参数校验 + 环境信息导出（非必需）
       - uses: macrunara/setup-action@v1

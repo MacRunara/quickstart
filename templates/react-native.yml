@@ -19,9 +19,9 @@ name: React Native CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   build-react-native:
@@ -31,7 +31,7 @@ jobs:
 
     steps:
       # Step 1: 检出代码
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Step 2（可选）: Macrunara Setup Action
       - uses: macrunara/setup-action@v1
@@ -41,7 +41,7 @@ jobs:
 
       # 可选：锁定 Node 版本（节点已预装 20，默认不需要）
       # - name: Setup Node.js
-      #   uses: actions/setup-node@v4
+      #   uses: actions/setup-node@v5
       #   with:
       #     node-version: '20'
 
