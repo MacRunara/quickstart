@@ -1,16 +1,16 @@
-# Workflow 模板：React Native
+# Workflow template: React Native
 # =============================================================================
-# 适用项目：React Native 应用（示例覆盖 JS 测试与 iOS 原生构建）。
+# Best for: React Native apps (this example covers JS tests + iOS native build).
 #
-# 一键复制方法：
-#   1. 将本文件复制到你的仓库 .github/workflows/react-native.yml
-#   2. 按需修改 iOS workspace/scheme 名、包管理器（npm / yarn）
-#   3. push 到 main 分支（或发起 PR）即可触发
+# How to use:
+#   1. Copy this file to .github/workflows/react-native.yml in your repo
+#   2. Adjust the iOS workspace/scheme names and package manager (npm / yarn)
+#   3. Push to the main branch (or open a PR) to trigger a build
 #
-# 环境说明：
-# - Macrunara 节点已预装 Node 20 LTS + yarn + CocoaPods 1.17 +
-#   JDK 17 + Android SDK（API 35 + NDK 27），复制即用；
-#   下方「Setup PATH」步骤会把 pod / node 等预装工具写入 PATH。
+# Environment notes:
+# - Macrunara nodes ship with Node 20 LTS + yarn + CocoaPods 1.17 +
+#   JDK 17 + Android SDK (API 35 + NDK 27) preinstalled — copy and go;
+#   the "Setup PATH" step puts preinstalled tools (pod / node) on PATH.
 # =============================================================================
 
 name: React Native CI
@@ -23,36 +23,37 @@ on:
 
 jobs:
   build-react-native:
-    # 标准标签写法：[macos, arm64, macrunara]
-    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    # Standard label: [macos, arm64, macrunara]
+    # Do NOT use labels the nodes don't report (e.g. self-hosted, macos-latest),
+    # or your job will stay queued forever.
     runs-on: [macos, arm64, macrunara]
 
     steps:
-      # Step 1: 检出代码
+      # Step 1: Checkout
       - uses: actions/checkout@v5
 
-      # 可选：锁定 Node 版本（节点已预装 20，默认不需要）
+      # Optional: pin a Node version (nodes already ship 20; usually not needed)
       # - name: Setup Node.js
       #   uses: actions/setup-node@v5
       #   with:
       #     node-version: '20'
 
-      # Step 2: 写入预装工具 PATH（节点已预装，无需安装）
+      # Step 2: Add preinstalled tools to PATH (no installation needed)
       - name: Setup PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
 
-      # Step 3: 打印环境信息（便于排障）
+      # Step 3: Print environment info (helps troubleshooting)
       - name: Show Environment
         run: |
           echo "OS:   $(uname -s) $(uname -m)"
           echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
 
-      # Step 4: 依赖 + 测试 + 构建 + 上传
+      # Step 4: Dependencies + test + build + upload
       # ----------------------------------
-      # ios-workspace / ios-scheme 改成你项目的实际路径与名称；
-      # 需要 Android 构建时自行追加 gradlew 步骤（参考 android-gradle 模板）；
-      # 不需要 jest 就删掉对应步骤。
+      # Set ios-workspace / ios-scheme to your project's actual paths;
+      # add your own gradlew step for Android builds (see the android-gradle
+      # template); drop the Jest step to skip tests.
       - name: Install dependencies
         run: |
           npm ci

@@ -1,0 +1,63 @@
+# Workflow テンプレート：Android（Gradle）
+# =============================================================================
+# 対象：Gradle Wrapper（gradlew）を使う Android アプリ。
+#
+# 使い方：
+#   1. このファイルをリポジトリの .github/workflows/android-gradle.yml にコピー
+#   2. module 名（例：app）、task、成果物パスを調整
+#   3. main ブランチに push（または PR 作成）でビルド開始
+#
+# 環境について：
+# - Macrunara ノードには JDK 17（temurin）+ Android SDK（API 35 +
+#   build-tools 35.0.0 + NDK 27）がプリインストール済みで、SDK ライセンスも
+#   承認済み。コピーするだけで使えます。
+# =============================================================================
+
+name: Android CI (Gradle)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-android:
+    # 標準ラベル：[macos, arm64, macrunara]
+    # ノードが報告していないラベル（self-hosted / macos-latest など）は
+    # 使わないでください。ジョブが永久にキュー待ちになります。
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: チェックアウト
+      - uses: actions/checkout@v5
+
+      # 任意：JDK バージョンを固定（ノードに temurin-17 がプリインストール済みのため通常は不要）
+      # - name: Setup JDK
+      #   uses: actions/setup-java@v5
+      #   with:
+      #     distribution: temurin
+      #     java-version: '17'
+
+      # Step 2: 環境情報を出力（トラブルシューティング用）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          java -version
+          echo "ANDROID_HOME=${ANDROID_HOME:-<未設定>}"
+
+      # Step 3: ビルド + アップロード
+      # -------------------
+      # task は assembleRelease / bundleRelease に変更可能（AAB は bundle*）。
+      # 単体テストを追加する場合：./gradlew testDebugUnitTest --no-daemon
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: app/build/outputs/

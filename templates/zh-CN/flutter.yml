@@ -1,0 +1,73 @@
+# Workflow 模板：Flutter
+# =============================================================================
+# 适用项目：Flutter 跨平台应用（示例同时覆盖 iOS 与 Android 构建）。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/flutter.yml
+#   2. 只需要单端构建时，注释掉对应的 build 行
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 环境说明：
+# - Macrunara 节点已预装 Flutter 3.47.2 stable（~/flutter），复制即用；
+#   下方「Setup PATH」步骤会把预装工具写入 PATH，无需自行安装。
+# =============================================================================
+
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-flutter:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v5
+
+      # 可选：锁定 Flutter 版本（节点已预装 stable，默认不需要）
+      # - name: Setup Flutter
+      #   uses: subosito/flutter-action@v2
+      #   with:
+      #     flutter-version: '3.24.0'
+      #     channel: stable
+
+      # Step 2: 写入预装工具 PATH（节点已预装，无需安装）
+      - name: Setup PATH
+        run: |
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          echo "/usr/local/bin" >> $GITHUB_PATH
+
+      # Step 3: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+
+      # Step 4: 分析 + 测试 + 构建 + 上传
+      # ----------------------------------
+      # 不需要 analyze/test 就删掉「Flutter Analyze & Test」步骤；
+      # 只要单端就注释掉对应的 build 行。
+      - name: Flutter Analyze & Test
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Build IPA (unsigned) & APK
+        run: |
+          flutter build ipa --release --no-codesign
+          flutter build apk --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build-products
+          path: |
+            build/ios/ipa/*.ipa
+            build/app/outputs/flutter-apk/app-release.apk

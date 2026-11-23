@@ -1,0 +1,75 @@
+# Workflow テンプレート：Flutter
+# =============================================================================
+# 対象：Flutter クロスプラットフォームアプリ（iOS / Android 両方のビルドを含む例）。
+#
+# 使い方：
+#   1. このファイルをリポジトリの .github/workflows/flutter.yml にコピー
+#   2. 片方のプラットフォームだけ必要な場合は、不要な build 行をコメントアウト
+#   3. main ブランチに push（または PR 作成）でビルド開始
+#
+# 環境について：
+# - Macrunara ノードには Flutter 3.47.2 stable がプリインストール済み
+#   （~/flutter）。下の「Setup PATH」ステップがプリインストール済みツールを
+#   PATH に追加するため、インストール不要です。
+# =============================================================================
+
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-flutter:
+    # 標準ラベル：[macos, arm64, macrunara]
+    # ノードが報告していないラベル（self-hosted / macos-latest など）は
+    # 使わないでください。ジョブが永久にキュー待ちになります。
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: チェックアウト
+      - uses: actions/checkout@v5
+
+      # 任意：Flutter バージョンを固定（ノードに stable がプリインストール済みのため通常は不要）
+      # - name: Setup Flutter
+      #   uses: subosito/flutter-action@v2
+      #   with:
+      #     flutter-version: '3.24.0'
+      #     channel: stable
+
+      # Step 2: プリインストール済みツールを PATH に追加（インストール不要）
+      - name: Setup PATH
+        run: |
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          echo "/usr/local/bin" >> $GITHUB_PATH
+
+      # Step 3: 環境情報を出力（トラブルシューティング用）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+
+      # Step 4: 解析 + テスト + ビルド + アップロード
+      # ----------------------------------
+      # analyze/test が不要なら「Flutter Analyze & Test」ステップを削除。
+      # 片方のプラットフォームだけ必要な場合は、不要な build 行をコメントアウト。
+      - name: Flutter Analyze & Test
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Build IPA (unsigned) & APK
+        run: |
+          flutter build ipa --release --no-codesign
+          flutter build apk --release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build-products
+          path: |
+            build/ios/ipa/*.ipa
+            build/app/outputs/flutter-apk/app-release.apk

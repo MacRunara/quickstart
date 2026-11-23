@@ -1,0 +1,61 @@
+# Workflow テンプレート：iOS（xcodebuild）
+# =============================================================================
+# 対象：Xcode プロジェクト（.xcodeproj / .xcworkspace）を使う iOS アプリ。
+#
+# 使い方：
+#   1. このファイルをリポジトリの .github/workflows/ios-xcodebuild.yml にコピー
+#   2. scheme と project / workspace のパスを調整
+#   3. main ブランチに push（または PR 作成）でビルド開始
+#
+# 環境について：
+# - Macrunara ノードは標準的な Apple Silicon M4 macOS 環境で、
+#   Xcode 26.x + CLT がプリインストール済み。job 内でのインストールは不要です。
+# =============================================================================
+
+name: iOS CI (xcodebuild)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-ios:
+    # 標準ラベル：[macos, arm64, macrunara]
+    # ノードが報告していないラベル（self-hosted / macos-latest など）は
+    # 使わないでください。ジョブが永久にキュー待ちになります。
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: チェックアウト
+      - uses: actions/checkout@v5
+
+      # Step 2: 環境情報を出力（トラブルシューティング用）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          xcodebuild -version
+
+      # Step 3: ビルド + アーカイブ + アップロード
+      # ----------------------------------
+      # configuration / sdk はプロジェクトに合わせて調整。.xcworkspace を使う
+      # 場合は -project の代わりに -workspace へパスを渡してください。
+      # コンパイル確認だけなら archive を build に変えて -archivePath を削除。
+      # CI ではコード署名を行いません（CODE_SIGNING_ALLOWED=NO）。
+      # xcarchive をそのままアップロードします。TestFlight 等への配信は
+      # 署名ステップを各自で追加してください。
+      - name: Build & Archive
+        run: |
+          set -o pipefail
+          xcodebuild -scheme MyApp -project MyApp.xcodeproj \
+            -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            -archivePath build/MyApp.xcarchive archive
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-products
+          path: build/

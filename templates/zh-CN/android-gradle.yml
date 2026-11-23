@@ -1,0 +1,61 @@
+# Workflow 模板：Android（Gradle）
+# =============================================================================
+# 适用项目：使用 Gradle Wrapper（gradlew）的 Android 应用。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/android-gradle.yml
+#   2. 按需修改 module 名（示例为 app）、task、产物路径
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 环境说明：
+# - Macrunara 节点已预装 JDK 17（temurin）+ Android SDK（API 35 +
+#   build-tools 35.0.0 + NDK 27），SDK licenses 已接受，复制即用。
+# =============================================================================
+
+name: Android CI (Gradle)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-android:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v5
+
+      # 可选：锁定 JDK 版本（节点已预装 temurin-17，默认不需要）
+      # - name: Setup JDK
+      #   uses: actions/setup-java@v5
+      #   with:
+      #     distribution: temurin
+      #     java-version: '17'
+
+      # Step 2: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          java -version
+          echo "ANDROID_HOME=${ANDROID_HOME:-<未设置>}"
+
+      # Step 3: 构建 + 上传
+      # -------------------
+      # task 可换 assembleRelease / bundleRelease（打 AAB 用 bundle*）；
+      # 单测可追加一个 step：./gradlew testDebugUnitTest --no-daemon
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: app/build/outputs/

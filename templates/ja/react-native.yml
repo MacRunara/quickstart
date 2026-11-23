@@ -1,0 +1,78 @@
+# Workflow テンプレート：React Native
+# =============================================================================
+# 対象：React Native アプリ（JS テスト + iOS ネイティブビルドをカバーする例）。
+#
+# 使い方：
+#   1. このファイルをリポジトリの .github/workflows/react-native.yml にコピー
+#   2. iOS の workspace / scheme 名とパッケージマネージャ（npm / yarn）を調整
+#   3. main ブランチに push（または PR 作成）でビルド開始
+#
+# 環境について：
+# - Macrunara ノードには Node 20 LTS + yarn + CocoaPods 1.17 + JDK 17 +
+#   Android SDK（API 35 + NDK 27）がプリインストール済み。
+#   「Setup PATH」ステップが pod / node などのプリインストール済みツールを
+#   PATH に追加します。
+# =============================================================================
+
+name: React Native CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-react-native:
+    # 標準ラベル：[macos, arm64, macrunara]
+    # ノードが報告していないラベル（self-hosted / macos-latest など）は
+    # 使わないでください。ジョブが永久にキュー待ちになります。
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: チェックアウト
+      - uses: actions/checkout@v5
+
+      # 任意：Node バージョンを固定（ノードに 20 がプリインストール済みのため通常は不要）
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v5
+      #   with:
+      #     node-version: '20'
+
+      # Step 2: プリインストール済みツールを PATH に追加（インストール不要）
+      - name: Setup PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+
+      # Step 3: 環境情報を出力（トラブルシューティング用）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+
+      # Step 4: 依存関係 + テスト + ビルド + アップロード
+      # ----------------------------------
+      # ios-workspace / ios-scheme はプロジェクトの実際のパスと名前に変更。
+      # Android ビルドが必要な場合は gradlew ステップを追加
+      # （android-gradle テンプレート参照）。jest が不要なら該当ステップを削除。
+      - name: Install dependencies
+        run: |
+          npm ci
+          if [ -f ios/Podfile ]; then (cd ios && pod install); fi
+
+      - name: Jest
+        run: npm test -- --ci
+
+      - name: Build iOS (simulator, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/MyApp.xcworkspace -scheme MyApp \
+            -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rn-ios-app
+          path: ios/build/

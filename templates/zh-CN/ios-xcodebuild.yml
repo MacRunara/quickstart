@@ -1,0 +1,58 @@
+# Workflow 模板：iOS（xcodebuild）
+# =============================================================================
+# 适用项目：使用 Xcode 工程（.xcodeproj / .xcworkspace）的 iOS 应用。
+#
+# 一键复制方法：
+#   1. 将本文件复制到你的仓库 .github/workflows/ios-xcodebuild.yml
+#   2. 按需修改 scheme、project/workspace 路径
+#   3. push 到 main 分支（或发起 PR）即可触发
+#
+# 环境说明：
+# - Macrunara 节点为标准 Apple Silicon M4 macOS 环境，预装 Xcode 26.x + CLT，
+#   无需在 job 内安装任何环境。
+# =============================================================================
+
+name: iOS CI (xcodebuild)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-ios:
+    # 标准标签写法：[macos, arm64, macrunara]
+    # 禁止写 self-hosted / macos-latest 等节点未上报的标签，否则任务永远排队
+    runs-on: [macos, arm64, macrunara]
+
+    steps:
+      # Step 1: 检出代码
+      - uses: actions/checkout@v5
+
+      # Step 2: 打印环境信息（便于排障）
+      - name: Show Environment
+        run: |
+          echo "OS:   $(uname -s) $(uname -m)"
+          echo "Runner: $RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+          xcodebuild -version
+
+      # Step 3: 构建 + 归档 + 上传
+      # ------------------------------
+      # configuration/sdk 按项目调整；使用 .xcworkspace 时把路径传给 -workspace。
+      # 只验证编译可把 archive 换成 build 并去掉 -archivePath；
+      # CI 不做代码签名（CODE_SIGNING_ALLOWED=NO），产物以 xcarchive 上传，
+      # TestFlight / 蒲公英分发请自行扩展签名步骤。
+      - name: Build & Archive
+        run: |
+          set -o pipefail
+          xcodebuild -scheme MyApp -project MyApp.xcodeproj \
+            -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            -archivePath build/MyApp.xcarchive archive
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-products
+          path: build/
