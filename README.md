@@ -35,17 +35,6 @@
 
 完整版本清单与镜像更新记录见 [docs/preinstalled-software.md](docs/preinstalled-software.md)。
 
-## 配套 Action
-
-- [`macrunara/setup-action@v1`](https://github.com/macrunara/setup-action) — 品牌横幅 + 参数校验 + 环境信息导出（四类项目通用，可选）。
-  使用需在仓库 Secrets 配置 `MACRUNARA_INSTALLATION_ID`（组织 Settings → Installed GitHub Apps → Macrunara 页面 URL 中的数字）。
-- [`macrunara/build-actions`](https://github.com/macrunara/build-actions) — 四技术栈构建动作，单仓四子目录，统一 `@v1`：
-  - [`/ios`](https://github.com/macrunara/build-actions/tree/main/ios) — xcodebuild 构建 / 归档导出 IPA / 产物上传
-  - [`/android`](https://github.com/macrunara/build-actions/tree/main/android) — Gradle Wrapper 构建 / APK·AAB 上传
-  - [`/flutter`](https://github.com/macrunara/build-actions/tree/main/flutter) — pub get → analyze → test → ipa（无签名）/ apk
-  - [`/react-native`](https://github.com/macrunara/build-actions/tree/main/react-native) — npm·yarn → pod install → jest → xcodebuild / gradlew
-- ⚠️ 旧仓库 [`macrunara/local-mac-runner-action`](https://github.com/macrunara/local-mac-runner-action) 已迁移至 `build-actions/ios`，`@v1` tag 保留可用但不再更新。
-
 ## FAQ
 
 - **Q: 任务一直排队，没有任何报错？**

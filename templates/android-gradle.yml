@@ -9,9 +9,7 @@
 #
 # 环境说明：
 # - Macrunara 节点已预装 JDK 17（temurin）+ Android SDK（API 35 +
-#   build-tools 35.0.0 + NDK 27），SDK licenses 已接受，复制即用；
-# - 构建使用 macrunara/build-actions/android：自动导出 ANDROID_HOME/JAVA_HOME、
-#   chmod +x gradlew 并执行 task（task 不含冒号时自动拼成 :<module>:<task>）。
+#   build-tools 35.0.0 + NDK 27），SDK licenses 已接受，复制即用。
 # =============================================================================
 
 name: Android CI (Gradle)
@@ -32,12 +30,6 @@ jobs:
       # Step 1: 检出代码
       - uses: actions/checkout@v5
 
-      # Step 2（可选）: Macrunara Setup Action
-      - uses: macrunara/setup-action@v1
-        with:
-          installation-id: ${{ secrets.MACRUNARA_INSTALLATION_ID }}
-          region: auto
-
       # 可选：锁定 JDK 版本（节点已预装 temurin-17，默认不需要）
       # - name: Setup JDK
       #   uses: actions/setup-java@v5
@@ -45,7 +37,7 @@ jobs:
       #     distribution: temurin
       #     java-version: '17'
 
-      # Step 3: 打印环境信息（便于排障）
+      # Step 2: 打印环境信息（便于排障）
       - name: Show Environment
         run: |
           echo "OS:   $(uname -s) $(uname -m)"
@@ -53,16 +45,17 @@ jobs:
           java -version
           echo "ANDROID_HOME=${ANDROID_HOME:-<未设置>}"
 
-      # Step 4: 构建 + 上传
+      # Step 3: 构建 + 上传
       # -------------------
       # task 可换 assembleRelease / bundleRelease（打 AAB 用 bundle*）；
       # 单测可追加一个 step：./gradlew testDebugUnitTest --no-daemon
-      # （action 的 Export 步骤已把 ANDROID_HOME/platform-tools 写进环境，直接用）。
-      - name: Build & Upload
-        uses: macrunara/build-actions/android@v1
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          task: assembleDebug
-          module: app
-          upload_artifact: true
-          artifact_name: android-debug-apk
-          artifact_path: app/build/outputs/
+          name: android-debug-apk
+          path: app/build/outputs/
